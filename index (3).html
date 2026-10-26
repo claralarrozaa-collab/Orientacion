@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Pixel Spaceship</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --violeta: #7c5cff; --violeta-osc: #4b2fd6; --cian: #22d3ee; --rosa: #ff5fa2;
+            --texto: #1e1b3a; --suave: #6b6890; --fondo-card: #ffffff;
+            --font: 'Poppins', system-ui, sans-serif;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; min-height: 100vh; font-family: var(--font); color: var(--texto);
+            background: radial-gradient(circle at 15% 10%, #3a2a8c 0, transparent 45%),
+                        radial-gradient(circle at 85% 90%, #0e7490 0, transparent 40%), #0f0c29;
+            display: flex; align-items: center; justify-content: center; padding: 20px;
+        }
+        .juego-marco {
+            position: relative; width: 100%; max-width: 960px; min-height: 580px;
+            background: rgba(255,255,255,0.07); backdrop-filter: blur(14px);
+            border: 1px solid rgba(255,255,255,0.18); border-radius: 28px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.5); overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        .boton {
+            background: linear-gradient(135deg, var(--violeta), var(--cian)); color: #fff;
+            font-family: var(--font); font-weight: 700; font-size: 0.95rem; letter-spacing: .5px;
+            padding: 14px 32px; border: 0; border-radius: 999px; cursor: pointer;
+            box-shadow: 0 8px 20px rgba(124,92,255,0.45); transition: transform .15s, box-shadow .15s;
+            text-transform: uppercase;
+        }
+        .boton:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(124,92,255,0.6); }
+        .boton:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+
+        .pantalla-inicio { position: absolute; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; transition: opacity .5s; }
+        .pantalla-inicio.oculta { opacity: 0; pointer-events: none; }
+        .caja-inicio { text-align: center; padding: 40px; display: flex; flex-direction: column; align-items: center; }
+        .caja-inicio::before { content: "🛸"; font-size: 5rem; filter: drop-shadow(0 0 20px var(--cian)); animation: flotar 2.5s infinite ease-in-out; }
+        .pantalla-inicio h1 { font-size: 2.4rem; font-weight: 800; color: #fff; margin: 10px 0 28px; line-height: 1.2; letter-spacing: 1px; }
+
+        .contenedor-quiz { position: relative; z-index: 10; width: 100%; flex: 1; display: none; padding: 30px; }
+        .vidas { display: none; }
+        .nave { position: absolute; top: 18px; right: 28px; font-size: 44px; filter: drop-shadow(0 0 12px var(--cian)); animation: flotar 2.5s infinite ease-in-out; }
+        @keyframes flotar { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+        .zona-juego { display: flex; gap: 28px; align-items: center; width: 100%; padding-top: 50px; }
+        .columna-izquierda { flex: 1.1; }
+        .columna-derecha { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+
+        .cuadro-pregunta { background: var(--fondo-card); border-radius: 22px; padding: 34px 26px 24px; position: relative; box-shadow: 0 15px 35px rgba(0,0,0,0.35); }
+        .pestana { position: absolute; top: -14px; left: 22px; background: linear-gradient(135deg, var(--rosa), var(--violeta)); color: #fff; font-size: .72rem; font-weight: 700; padding: 6px 14px; border-radius: 999px; letter-spacing: .5px; }
+        .pregunta-texto { font-size: 1.3rem; font-weight: 600; line-height: 1.35; margin-bottom: 20px; }
+
+        .opcion {
+            background: rgba(255,255,255,0.95); color: var(--texto); border: 2px solid transparent; border-radius: 14px;
+            padding: 12px 16px; font-size: .92rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 12px;
+            transition: all .15s; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .opcion::before { content: ""; width: 18px; height: 18px; flex-shrink: 0; border-radius: 50%; border: 2px solid var(--violeta); background: #fff; }
+        .opcion:hover { transform: translateX(4px); border-color: var(--cian); }
+        .opcion.seleccionada { background: linear-gradient(135deg, #ede9ff, #dff9ff); border-color: var(--violeta); }
+        .opcion.seleccionada::before { background: var(--violeta); box-shadow: inset 0 0 0 3px #fff; }
+        .btn-siguiente { margin-top: 6px; float: right; }
+
+        .pantalla-resultado { display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; z-index: 20; position: absolute; inset: 0; background: rgba(15,12,41,0.95); padding: 20px; overflow-y: auto; }
+        .pantalla-resultado h2 { font-size: 1.8rem; font-weight: 800; color: #fff; margin: 0 0 8px; }
+        .pantalla-resultado .subtitulo { font-size: 1.1rem; color: var(--cian); margin-bottom: 20px; line-height: 1.5; }
+        .subtitulo strong { color: #fff; font-size: 1.5rem; }
+
+        .contenedor-info-tec { display: flex; gap: 20px; width: 100%; max-width: 800px; justify-content: center; margin-bottom: 22px; }
+        .info-tarjeta { background: #fff; color: var(--texto); border: 3px solid transparent; border-radius: 20px; padding: 20px; width: 50%; text-align: left; box-shadow: 0 10px 25px rgba(0,0,0,0.35); transition: all .2s; }
+        .info-tarjeta h3 { font-size: 1.1rem; font-weight: 700; margin: 0 0 12px; padding-bottom: 10px; border-bottom: 2px solid #eee; text-align: center; }
+        .info-tarjeta p { font-size: .95rem; margin: 0 0 10px; }
+        .info-tarjeta ul { font-size: .88rem; margin: 0; padding-left: 20px; color: var(--suave); }
+        .info-tarjeta li { margin-bottom: 6px; }
+        .ganadora { border-color: var(--cian); box-shadow: 0 0 30px rgba(34,211,238,0.6); background: #effcff; transform: scale(1.04); }
+        .etiqueta-ganadora { display: none; background: var(--cian); color: #063; font-size: .7rem; font-weight: 700; padding: 5px; text-align: center; margin-bottom: 10px; border-radius: 999px; }
+        .ganadora .etiqueta-ganadora { display: block; }
+
+        .campo { margin-bottom: 16px; }
+        .campo label { font-size: .85rem; font-weight: 600; display: block; margin-bottom: 6px; }
+        .campo input, .campo select { width: 100%; padding: 12px 14px; border: 2px solid #ddd8f5; border-radius: 12px; font-family: var(--font); font-size: 1rem; outline: none; }
+        .campo input:focus, .campo select:focus { border-color: var(--violeta); }
+
+        @media (max-width: 760px) {
+            .zona-juego { flex-direction: column; align-items: stretch; padding-top: 40px; }
+            .contenedor-info-tec { flex-direction: column; }
+            .info-tarjeta { width: 100%; }
+            .pantalla-inicio h1 { font-size: 1.7rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="juego-marco">
+        
+        <!-- PANTALLA DE INICIO -->
+        <div class="pantalla-inicio" id="pantalla-inicio">
+            <div class="caja-inicio">
+                <h1>QUIZ PIXEL<br>SPACESHIP</h1>
+                <button class="boton" onclick="iniciarJuego()">START</button>
+            </div>
+        </div>
+
+        <!-- CONTENEDOR DEL QUIZ -->
+        <div class="contenedor-quiz" id="contenedor-quiz">
+            <div class="vidas" id="vidas">
+                <span>♥</span><span>♥</span><span>♥</span><span>♥</span><span>♥</span>
+            </div>
+            <div class="nave">🛸</div>
+            <div class="zona-juego" id="contenedor-dinamico"></div>
+        </div>
+
+        <!-- PANTALLA RESULTADO (CON INFO DETALLADA TECPRO Y TECMU) -->
+        <div class="pantalla-resultado" id="pantalla-resultado">
+            <h2 id="titulo-resultado">CONGRATS!</h2>
+            <div class="subtitulo" id="texto-resultado"></div>
+            
+            <div class="contenedor-info-tec">
+                <!-- Tarjeta TECPRO -->
+                <div class="info-tarjeta" id="tarjeta-prog">
+                    <div class="etiqueta-ganadora">¡RECOMENDADA PARA VOS!</div>
+                    <h3>💻 TECPRO</h3>
+                    <p><strong>Técnico en Programación</strong></p>
+                    <ul>
+                        <li>Aprenderás a crear software, apps y videojuegos.</li>
+                        <li>Lógica, algoritmos y bases de datos.</li>
+                        <li>Desarrollo web y móvil.</li>
+                        <li>Salida laboral: Desarrollador, tester, soporte técnico.</li>
+                    </ul>
+                </div>
+
+                <!-- Tarjeta TECMU -->
+                <div class="info-tarjeta" id="tarjeta-multi">
+                    <div class="etiqueta-ganadora">¡RECOMENDADA PARA VOS!</div>
+                    <h3>🎨 TECMU</h3>
+                    <p><strong>Técnico en Multimedios</strong></p>
+                    <ul>
+                        <li>Aprenderás a crear contenido audiovisual.</li>
+                        <li>Diseño gráfico, fotografía y edición de video.</li>
+                        <li>Producción de radio, cine y animación digital.</li>
+                        <li>Salida laboral: Editor, diseñador, productor audiovisual.</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <button class="boton" onclick="location.reload()">START OVER?</button>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCy7-Uua_Sj07aXuAd5JgWJMO93CTjPiCA",
+            authDomain: "clari-b8e35.firebaseapp.com",
+            projectId: "clari-b8e35",
+            storageBucket: "clari-b8e35.firebasestorage.app",
+            messagingSenderId: "95318385727",
+            appId: "1:95318385727:web:8abdaac8e835cd7c39448a",
+            measurementId: "G-R8P4MPF9LW"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // LAS 18 PREGUNTAS COMPLETAS
+        const PREGUNTAS = [
+            { id: 1, texto: "¿Qué te gustaría crear?", opciones: [
+                { letra: "A", texto: "Un videojuego con personajes y niveles.", p: 3, m: 1 },
+                { letra: "B", texto: "Un cortometraje con imágenes y música.", p: 0, m: 3 },
+                { letra: "C", texto: "Una aplicación para resolver un problema.", p: 3, m: 0 },
+                { letra: "D", texto: "Una producción que combine diseño y tecnología.", p: 2, m: 2 },
+                { letra: "E", texto: "Todavía no lo sé.", p: 0, m: 0 }
+            ]},
+            { id: 2, texto: "¿Qué actividad te llama más la atención?", opciones: [
+                { letra: "A", texto: "Descubrir cómo funcionan los programas y las aplicaciones.", p: 3, m: 0 },
+                { letra: "B", texto: "Diseñar imágenes, editar videos o crear contenido audiovisual.", p: 0, m: 3 },
+                { letra: "C", texto: "Resolver desafíos utilizando la lógica.", p: 3, m: 0 },
+                { letra: "D", texto: "Combinar diferentes herramientas para crear algo original.", p: 2, m: 2 },
+                { letra: "E", texto: "Me interesan varias de estas posibilidades.", p: 0, m: 0 }
+            ]},
+            { id: 3, texto: "Si pudieras realizar un proyecto en la escuela, ¿cuál elegirías?", opciones: [
+                { letra: "A", texto: "Programar un juego.", p: 3, m: 1 },
+                { letra: "B", texto: "Crear un cortometraje.", p: 0, m: 3 },
+                { letra: "C", texto: "Diseñar una página web interactiva.", p: 2, m: 2 },
+                { letra: "D", texto: "Realizar una producción audiovisual.", p: 0, m: 3 },
+                { letra: "E", texto: "Investigar ambas orientaciones antes de elegir.", p: 0, m: 0 }
+            ]},
+            { id: 4, texto: "Cuando usás la compu o el celular, ¿qué es lo que más te gusta hacer?", opciones: [
+                { letra: "A", texto: "Jugar y preguntarme cómo está hecho el juego.", p: 3, m: 1 },
+                { letra: "B", texto: "Editar fotos o videos, o crear contenido para redes.", p: 0, m: 3 },
+                { letra: "C", texto: "Probar aplicaciones nuevas y descubrir cómo funcionan.", p: 3, m: 0 },
+                { letra: "D", texto: "Dibujar o diseñar con programas gráficos.", p: 1, m: 2 },
+                { letra: "E", texto: "La uso para otras cosas o no tengo una actividad favorita.", p: 0, m: 0 }
+            ]},
+            { id: 5, texto: "Cuando te enfrentás a un problema difícil, ¿qué hacés primero?", opciones: [
+                { letra: "A", texto: "Lo divido en pasos y busco una solución ordenada.", p: 3, m: 0 },
+                { letra: "B", texto: "Busco una idea original o una forma creativa de resolverlo.", p: 1, m: 3 },
+                { letra: "C", texto: "Pruebo distintos caminos hasta que funciona.", p: 2, m: 1 },
+                { letra: "D", texto: "Busco ejemplos o referencias que me inspiren.", p: 0, m: 2 },
+                { letra: "E", texto: "Depende del problema, no estoy seguro/a.", p: 0, m: 0 }
+            ]},
+            { id: 6, texto: "¿Qué materia o actividad de la escuela disfrutás más?", opciones: [
+                { letra: "A", texto: "Matemática, lógica o tecnología.", p: 3, m: 0 },
+                { letra: "B", texto: "Dibujo, plástica, comunicación o diseño.", p: 0, m: 3 },
+                { letra: "C", texto: "Los talleres donde construyo o armo cosas.", p: 2, m: 2 },
+                { letra: "D", texto: "Las actividades donde uso computadoras.", p: 2, m: 1 },
+                { letra: "E", texto: "Ninguna en particular.", p: 0, m: 0 }
+            ]},
+            { id: 7, texto: "¿Qué te parece más emocionante?", opciones: [
+                { letra: "A", texto: "Que un programa que escribí funcione por primera vez.", p: 3, m: 0 },
+                { letra: "B", texto: "Ver terminado un video o una imagen que diseñé.", p: 0, m: 3 },
+                { letra: "C", texto: "Que otras personas usen algo que creé.", p: 2, m: 2 },
+                { letra: "D", texto: "Encontrar el error de algo que no funcionaba y arreglarlo.", p: 3, m: 0 },
+                { letra: "E", texto: "Todavía no lo sé.", p: 0, m: 0 }
+            ]},
+            { id: 8, texto: "En un proyecto en equipo, ¿qué rol preferirías?", opciones: [
+                { letra: "A", texto: "Armar la lógica y lograr que todo funcione.", p: 3, m: 0 },
+                { letra: "B", texto: "Diseñar el aspecto visual y la imagen del proyecto.", p: 0, m: 3 },
+                { letra: "C", texto: "Filmar, grabar sonido o editar.", p: 0, m: 3 },
+                { letra: "D", texto: "Organizar al grupo y repartir las tareas.", p: 1, m: 1 },
+                { letra: "E", texto: "Cualquiera de los roles o no estoy seguro/a.", p: 0, m: 0 }
+            ]},
+            { id: 9, texto: "¿Cómo preferís trabajar?", opciones: [
+                { letra: "A", texto: "Solo/a, concentrado/a en mi tarea.", p: 0, m: 0 },
+                { letra: "B", texto: "En parejas.", p: 0, m: 0 },
+                { letra: "C", texto: "En grupos pequeños.", p: 0, m: 0 },
+                { letra: "D", texto: "Depende del proyecto.", p: 0, m: 0 },
+                { letra: "E", texto: "No estoy seguro/a.", p: 0, m: 0 }
+            ]},
+            { id: 10, texto: "¿Qué te da más curiosidad aprender?", opciones: [
+                { letra: "A", texto: "Cómo se escriben las instrucciones que hacen funcionar un programa.", p: 3, m: 0 },
+                { letra: "B", texto: "Cómo se logran los efectos visuales, las animaciones o la edición de video.", p: 0, m: 3 },
+                { letra: "C", texto: "Cómo funcionan por dentro las páginas web y las aplicaciones.", p: 3, m: 0 },
+                { letra: "D", texto: "Cómo se comunica una idea con imágenes y sonido.", p: 0, m: 3 },
+                { letra: "E", texto: "Todavía no lo sé o me interesan varias cosas.", p: 0, m: 0 }
+            ]},
+            { id: 11, texto: "Si tuvieras que presentar un proyecto, ¿cómo lo harías?", opciones: [
+                { letra: "A", texto: "Mostrando un programa o una demostración que funcione.", p: 3, m: 0 },
+                { letra: "B", texto: "Con un video o una presentación muy visual.", p: 0, m: 3 },
+                { letra: "C", texto: "Con un prototipo interactivo y de buen diseño.", p: 2, m: 2 },
+                { letra: "D", texto: "Con una explicación clara, paso a paso.", p: 2, m: 0 },
+                { letra: "E", texto: "Depende del proyecto o no lo sé.", p: 0, m: 0 }
+            ]},
+            { id: 12, texto: "En tu tiempo libre, ¿qué preferís hacer?", opciones: [
+                { letra: "A", texto: "Armar, configurar o programar cosas en la computadora o el celular.", p: 3, m: 0 },
+                { letra: "B", texto: "Dibujar, sacar fotos o grabar videos.", p: 0, m: 3 },
+                { letra: "C", texto: "Jugar videojuegos.", p: 2, m: 1 },
+                { letra: "D", texto: "Escuchar o hacer música, o mirar películas y series.", p: 0, m: 2 },
+                { letra: "E", texto: "Un poco de todo.", p: 0, m: 0 }
+            ]},
+            { id: 13, texto: "¿Qué herramienta te gustaría aprender a usar?", opciones: [
+                { letra: "A", texto: "Un editor de código para crear programas y páginas web.", p: 3, m: 0 },
+                { letra: "B", texto: "Un programa de edición de video o de audio.", p: 0, m: 3 },
+                { letra: "C", texto: "Un programa de diseño gráfico o de edición de imágenes.", p: 0, m: 3 },
+                { letra: "D", texto: "Herramientas para crear animaciones o videojuegos.", p: 2, m: 2 },
+                { letra: "E", texto: "Todavía no conozco ninguna o no lo sé.", p: 0, m: 0 }
+            ]},
+            { id: 14, texto: "¿Qué te gustaría lograr con lo que aprendas?", opciones: [
+                { letra: "A", texto: "Crear programas o aplicaciones útiles para otras personas.", p: 3, m: 0 },
+                { letra: "B", texto: "Producir contenidos que emocionen o comuniquen algo.", p: 0, m: 3 },
+                { letra: "C", texto: "Entender mejor la tecnología que uso todos los días.", p: 2, m: 0 },
+                { letra: "D", texto: "Poder expresar mis propias ideas de forma creativa.", p: 1, m: 2 },
+                { letra: "E", texto: "Todavía no lo tengo claro.", p: 0, m: 0 }
+            ]},
+            { id: 15, texto: "¿Cuánto conocés de las dos orientaciones?", opciones: [
+                { letra: "A", texto: "Conozco bastante de Programación.", p: 0, m: 0 },
+                { letra: "B", texto: "Conozco bastante de Multimedios.", p: 0, m: 0 },
+                { letra: "C", texto: "Conozco un poco de las dos.", p: 0, m: 0 },
+                { letra: "D", texto: "Casi no conozco ninguna.", p: 0, m: 0 },
+                { letra: "E", texto: "Prefiero no responder.", p: 0, m: 0 }
+            ]},
+            { id: 16, texto: "¿Qué dudas tenés al momento de elegir?", opciones: [
+                { letra: "A", texto: "No sé bien qué se aprende en cada orientación.", p: 0, m: 0 },
+                { letra: "B", texto: "Me preocupa que sea muy difícil.", p: 0, m: 0 },
+                { letra: "C", texto: "No sé qué puedo estudiar o en qué puedo trabajar después.", p: 0, m: 0 },
+                { letra: "D", texto: "Me gustan las dos y no sé cuál elegir.", p: 0, m: 0 },
+                { letra: "E", texto: "Me influye lo que elijan mis amigos/as.", p: 0, m: 0 },
+                { letra: "F", texto: "No tengo dudas: ya sé lo que quiero.", p: 0, m: 0 }
+            ]},
+            { id: 17, texto: "¿Qué actividad te gustaría que organizara la escuela para conocer mejor las orientaciones?", opciones: [
+                { letra: "A", texto: "Talleres de programación y videojuegos.", p: 0, m: 0 },
+                { letra: "B", texto: "Talleres de video, fotografía y diseño.", p: 0, m: 0 },
+                { letra: "C", texto: "Charlas con estudiantes de años superiores.", p: 0, m: 0 },
+                { letra: "D", texto: "Proyectos que combinen las dos orientaciones.", p: 0, m: 0 },
+                { letra: "E", texto: "Una muestra de proyectos terminados.", p: 0, m: 0 }
+            ]},
+            { id: 18, texto: "¿Cuál de estas frases se parece más a vos?", opciones: [
+                { letra: "A", texto: "Me gusta entender cómo funcionan las cosas por dentro.", p: 3, m: 0 },
+                { letra: "B", texto: "Me gusta imaginar cosas y hacerlas realidad con imágenes y sonidos.", p: 0, m: 3 },
+                { letra: "C", texto: "Me gusta crear cosas que mucha gente pueda usar.", p: 2, m: 1 },
+                { letra: "D", texto: "Me gusta aprender de todo un poco.", p: 0, m: 0 },
+                { letra: "E", texto: "No estoy seguro/a.", p: 0, m: 0 }
+            ]}
+        ];
+
+        let indiceActual = 0;
+        let respuestas = [];
+        let datosEstudiante = { nombre: "", curso: "" };
+        const contenedor = document.getElementById('contenedor-dinamico');
+
+        window.iniciarJuego = function() {
+            document.getElementById('pantalla-inicio').classList.add('oculta');
+            document.getElementById('contenedor-quiz').style.display = 'block';
+            mostrarRegistro();
+        };
+
+        function mostrarRegistro() {
+            const html = `
+                <div class="columna-izquierda">
+                    <div class="cuadro-pregunta">
+                        <div class="pestana">REGISTRO</div>
+                        <div class="pregunta-texto">Ingresá tus datos:</div>
+                        <div class="campo">
+                            <label>Nombre:</label>
+                            <input type="text" id="input-nombre" placeholder="Ej: Luana">
+                        </div>
+                        <div class="campo">
+                            <label>Curso:</label>
+                            <select id="select-curso">
+                                <option value="">Seleccioná...</option>
+                                <option value="1.º año">1.º año</option>
+                                <option value="2.º año">2.º año</option>
+                                <option value="3.º año">3.º año</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="columna-derecha">
+                    <button class="boton btn-siguiente" id="btn-comenzar" disabled>IR</button>
+                </div>
+            `;
+            contenedor.innerHTML = html;
+            
+            const inputNombre = document.getElementById('input-nombre');
+            const selectCurso = document.getElementById('select-curso');
+            const btnComenzar = document.getElementById('btn-comenzar');
+
+            function validar() {
+                btnComenzar.disabled = !(inputNombre.value.trim().length > 2 && selectCurso.value !== "");
+            }
+            inputNombre.addEventListener('input', validar);
+            selectCurso.addEventListener('change', validar);
+
+            btnComenzar.addEventListener('click', () => {
+                datosEstudiante.nombre = inputNombre.value.trim();
+                datosEstudiante.curso = selectCurso.value;
+                indiceActual = 0;
+                mostrarPregunta();
+            });
+        }
+
+        function mostrarPregunta() {
+            const p = PREGUNTAS[indiceActual];
+            
+            let opcionesHTML = '';
+            p.opciones.forEach(op => {
+                opcionesHTML += `<div class="opcion" onclick="seleccionarOpcion(this, '${op.letra}')">${op.texto}</div>`;
+            });
+
+            const html = `
+                <div class="columna-izquierda">
+                    <div class="cuadro-pregunta">
+                        <div class="pestana">QUESTION ${indiceActual + 1}/${PREGUNTAS.length}</div>
+                        <div class="pregunta-texto">${p.texto}</div>
+                        <button class="boton btn-siguiente" id="btn-siguiente" disabled>${indiceActual === PREGUNTAS.length - 1 ? 'FINALIZAR' : 'NEXT'}</button>
+                    </div>
+                </div>
+                <div class="columna-derecha">
+                    ${opcionesHTML}
+                </div>
+            `;
+            
+            contenedor.innerHTML = html;
+            const btnSiguiente = document.getElementById('btn-siguiente');
+            
+            if (respuestas[indiceActual]) {
+                const opcionesDivs = document.querySelectorAll('.opcion');
+                const letraGuardada = respuestas[indiceActual].letra;
+                opcionesDivs.forEach((div, index) => {
+                    if (p.opciones[index].letra === letraGuardada) {
+                        div.classList.add('seleccionada');
+                        btnSiguiente.disabled = false;
+                    }
+                });
+            }
+
+            btnSiguiente.addEventListener('click', async () => {
+                if (indiceActual < PREGUNTAS.length - 1) {
+                    indiceActual++;
+                    mostrarPregunta();
+                } else {
+                    await finalizarEncuesta();
+                }
+            });
+        }
+
+        window.seleccionarOpcion = function(elemento, letra) {
+            const p = PREGUNTAS[indiceActual];
+            const opcionElegida = p.opciones.find(o => o.letra === letra);
+            
+            document.querySelectorAll('.opcion').forEach(o => o.classList.remove('seleccionada'));
+            elemento.classList.add('seleccionada');
+            
+            respuestas[indiceActual] = opcionElegida;
+            document.getElementById('btn-siguiente').disabled = false;
+        };
+
+        async function finalizarEncuesta() {
+            let puntosP = 0, puntosM = 0;
+            respuestas.forEach(r => {
+                if (r) { puntosP += r.p; puntosM += r.m; }
+            });
+
+            let tecnica = "COMPARTIDO";
+            if (puntosP > puntosM + 2) tecnica = "PROGRAMACIÓN";
+            else if (puntosM > puntosP + 2) tecnica = "MULTIMEDIOS";
+
+            document.getElementById('contenedor-quiz').style.display = 'none';
+            document.getElementById('pantalla-resultado').style.display = 'flex';
+
+            document.getElementById('texto-resultado').innerHTML = `¡Felicidades, ${datosEstudiante.nombre}!<br>Tu camino ideal es:<br><strong>${tecnica}</strong>`;
+            
+            // Lógica para resaltar la tarjeta ganadora
+            if (tecnica === "PROGRAMACIÓN") {
+                document.getElementById('tarjeta-prog').classList.add('ganadora');
+            } else if (tecnica === "MULTIMEDIOS") {
+                document.getElementById('tarjeta-multi').classList.add('ganadora');
+            } else {
+                // Si es compartido, resaltamos un poquito las dos
+                document.getElementById('tarjeta-prog').style.borderColor = "var(--rosa)";
+                document.getElementById('tarjeta-multi').style.borderColor = "var(--rosa)";
+            }
+
+            try {
+                await addDoc(collection(db, "respuestas"), {
+                    nombre: datosEstudiante.nombre,
+                    curso: datosEstudiante.curso,
+                    resultado: tecnica,
+                    puntosProgramacion: puntosP,
+                    puntosMultimedios: puntosM,
+                    respuestas: respuestas.map(r => r ? r.letra : "-"),
+                    fecha: serverTimestamp()
+                });
+            } catch (e) { 
+                console.error("Error al guardar: ", e); 
+            }
+        }
+    </script>
+</body>
+</html>

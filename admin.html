@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Respuestas del Quiz</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --violeta: #7c5cff; --cian: #22d3ee; --rosa: #ff5fa2; --rojo: #ef4444;
+            --texto: #1e1b3a; --font: 'Poppins', system-ui, sans-serif;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; min-height: 100vh; font-family: var(--font); color: var(--texto);
+            background: radial-gradient(circle at 15% 10%, #3a2a8c 0, transparent 45%),
+                        radial-gradient(circle at 85% 90%, #0e7490 0, transparent 40%), #0f0c29;
+            display: flex; align-items: center; justify-content: center; padding: 20px;
+        }
+        .juego-marco {
+            position: relative; width: 100%; max-width: 1000px; height: 600px;
+            background: rgba(255,255,255,0.07); backdrop-filter: blur(14px);
+            border: 1px solid rgba(255,255,255,0.18); border-radius: 28px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.5); overflow: hidden; display: flex; flex-direction: column;
+        }
+        .login-pantalla { position: absolute; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; transition: opacity .5s; }
+        .login-pantalla.oculta { opacity: 0; pointer-events: none; }
+        .login-caja { background: #fff; padding: 40px 36px; border-radius: 24px; text-align: center; width: 100%; max-width: 380px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .login-caja h2 { font-size: 1.3rem; font-weight: 800; color: var(--violeta); margin: 0 0 22px; }
+        .login-caja input { width: 100%; padding: 14px; margin-bottom: 18px; border: 2px solid #ddd8f5; border-radius: 12px; font-family: var(--font); font-size: 1rem; outline: none; text-align: center; }
+        .login-caja input:focus { border-color: var(--violeta); }
+
+        .boton {
+            background: linear-gradient(135deg, var(--violeta), var(--cian)); color: #fff; width: 100%;
+            font-family: var(--font); font-weight: 700; font-size: .9rem; padding: 12px 24px; border: 0; border-radius: 999px;
+            cursor: pointer; box-shadow: 0 6px 16px rgba(124,92,255,0.4); transition: transform .15s; text-transform: uppercase;
+        }
+        .boton:hover { transform: translateY(-2px); }
+        .boton-chico { width: auto; padding: 9px 18px; font-size: .75rem; }
+        .boton-rojo { background: var(--rojo); box-shadow: 0 6px 16px rgba(239,68,68,0.4); }
+
+        .panel { display: none; flex-direction: column; width: 100%; height: 100%; padding: 28px; }
+        .panel.activo { display: flex; }
+        .header-panel { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 10px; }
+        .header-panel h1 { font-size: 1.5rem; font-weight: 800; color: #fff; margin: 0; }
+        .controles { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        .tabla-contenedor { flex: 1; overflow: auto; border-radius: 18px; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 14px; text-align: left; font-size: .9rem; border-bottom: 1px solid #eceaf8; }
+        th { background: #f3f0ff; color: var(--violeta); font-size: .75rem; font-weight: 700; text-transform: uppercase; position: sticky; top: 0; z-index: 10; }
+        tr:hover td { background: #faf8ff; }
+        .resultado-prog { color: #2563eb; font-weight: 700; }
+        .resultado-multi { color: #db2777; font-weight: 700; }
+        .resultado-compartido { color: #6b7280; font-weight: 700; }
+        .btn-borrar { background: transparent; border: none; font-size: 1.3rem; cursor: pointer; transition: transform .1s; }
+        .btn-borrar:hover { transform: scale(1.2); }
+        .tabla-contenedor::-webkit-scrollbar { width: 10px; height: 10px; }
+        .tabla-contenedor::-webkit-scrollbar-thumb { background: var(--violeta); border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="juego-marco">
+        
+        <!-- PANTALLA DE LOGIN -->
+        <div class="login-pantalla" id="login-pantalla">
+            <div class="login-caja">
+                <h2>ACCESO ADMIN</h2>
+                <input type="password" id="pass" placeholder="Contraseña">
+                <button class="boton" onclick="verificar()">ENTRAR</button>
+                <p id="error" style="color: #ef4444; display: none; font-weight: 700; font-size: .8rem; margin-top: 15px;">CONTRASEÑA INCORRECTA</p>
+            </div>
+        </div>
+
+        <!-- PANEL DE RESPUESTAS -->
+        <div class="panel" id="panel">
+            <div class="header-panel">
+                <h1>REGISTRO DE ALUMNOS</h1>
+                <div class="controles">
+                    <button class="boton boton-chico boton-rojo" onclick="borrarTodo()">BORRAR TODO</button>
+                    <button class="boton boton-chico" onclick="cargarDatos()">ACTUALIZAR</button>
+                    <button class="boton boton-chico" style="background: var(--rosa);" onclick="location.reload()">SALIR</button>
+                </div>
+            </div>
+            
+            <div class="tabla-contenedor">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Nombre</th>
+                            <th>Curso</th>
+                            <th>Resultado</th>
+                            <th>Pts Prog</th>
+                            <th>Pts Multi</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-body">
+                        <tr><td colspan="7" style="text-align:center;">Cargando datos...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, query, orderBy, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCy7-Uua_Sj07aXuAd5JgWJMO93CTjPiCA",
+            authDomain: "clari-b8e35.firebaseapp.com",
+            projectId: "clari-b8e35",
+            storageBucket: "clari-b8e35.firebasestorage.app",
+            messagingSenderId: "95318385727",
+            appId: "1:95318385727:web:8abdaac8e835cd7c39448a",
+            measurementId: "G-R8P4MPF9LW"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // CONTRASEÑA
+        const CONTRASENA_ADMIN = "margarita5.4";
+
+        window.verificar = function() {
+            const pass = document.getElementById('pass').value;
+            if (pass === CONTRASENA_ADMIN) {
+                document.getElementById('login-pantalla').classList.add('oculta');
+                document.getElementById('panel').classList.add('activo');
+                cargarDatos();
+            } else {
+                document.getElementById('error').style.display = 'block';
+            }
+        };
+
+        window.cargarDatos = async function() {
+            const tbody = document.getElementById('tabla-body');
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Buscando registros...</td></tr>';
+            
+            try {
+                const q = query(collection(db, "respuestas"), orderBy("fecha", "desc"));
+                const querySnapshot = await getDocs(q);
+                tbody.innerHTML = '';
+                
+                if (querySnapshot.empty) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No hay respuestas guardadas.</td></tr>';
+                    return;
+                }
+
+                querySnapshot.forEach((docSnap) => {
+                    const d = docSnap.data();
+                    const idDoc = docSnap.id; // Guardamos el ID del documento para poder borrarlo
+                    const fecha = d.fecha ? d.fecha.toDate().toLocaleString() : 'N/A';
+                    
+                    let claseResultado = 'resultado-compartido';
+                    if (d.resultado === "PROGRAMACIÓN") claseResultado = 'resultado-prog';
+                    if (d.resultado === "MULTIMEDIOS") claseResultado = 'resultado-multi';
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${fecha}</td>
+                        <td><strong>${d.nombre}</strong></td>
+                        <td>${d.curso}</td>
+                        <td class="${claseResultado}">${d.resultado}</td>
+                        <td>${d.puntosProgramacion}</td>
+                        <td>${d.puntosMultimedios}</td>
+                        <td><button class="btn-borrar" onclick="eliminarRegistro('${idDoc}', '${d.nombre}')">🗑️</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error("Error al cargar:", error);
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: red;">Error al cargar. Revisá las reglas de Firebase.</td></tr>';
+            }
+        };
+
+        // --- FUNCIÓN PARA ELIMINAR UN REGISTRO ---
+        window.eliminarRegistro = async function(idDoc, nombre) {
+            const confirmar = confirm(`¿Estás segura de eliminar el registro de ${nombre}?`);
+            if (!confirmar) return;
+
+            try {
+                await deleteDoc(doc(db, "respuestas", idDoc));
+                alert("Registro eliminado correctamente.");
+                cargarDatos(); // Recargamos la tabla
+            } catch (error) {
+                console.error("Error al eliminar:", error);
+                alert("No se pudo eliminar. Revisá los permisos en Firebase.");
+            }
+        };
+
+        // --- FUNCIÓN PARA BORRAR TODO ---
+        window.borrarTodo = async function() {
+            const confirmar = confirm("¡CUIDADO! ¿Estás segura de que querés borrar TODOS los registros? Esta acción no se puede deshacer.");
+            if (!confirmar) return;
+
+            try {
+                const querySnapshot = await getDocs(collection(db, "respuestas"));
+                const promesas = [];
+                querySnapshot.forEach((docSnap) => {
+                    promesas.push(deleteDoc(doc(db, "respuestas", docSnap.id)));
+                });
+                await Promise.all(promesas);
+                alert("Todos los registros fueron eliminados.");
+                cargarDatos();
+            } catch (error) {
+                console.error("Error al borrar todo:", error);
+                alert("No se pudo borrar. Revisá los permisos en Firebase.");
+            }
+        };
+    </script>
+</body>
+</html>
